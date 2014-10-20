@@ -63,9 +63,6 @@ assignmentsCompatible xs ys =
 valsMatch :: (Val, Val) -> Bool
 valsMatch (x, y) = x == y
 
---union :: Eq a => [a] -> [a] -> [a]
---union xs ys = [y  | y  <- ys, not $ elem y xs] ++ ys
-
 -- TODO make this shit clearer
 marginalize :: RandVar -> Factor -> Factor
 marginalize arg (F vars fun) =
