@@ -9,7 +9,7 @@ import Data.List
 
 data Asgn a b = a := b
 instance (Show a, Show b) => Show (Asgn a b) where
-  show (a := b) = (show a) ++ " := " ++ (show b)
+  show (a := b) = show a ++ " := " ++ show b
 instance (Eq a, Eq b) => Eq (Asgn a b) where
   (aVar := aVal) == (bVar := bVal) = aVar == bVar && aVal == bVal
 
@@ -36,7 +36,7 @@ fFun (F _ fun) = fun
 scopeContains :: RandVar -- ^ The variable to be looked up
               -> Factor         -- ^ The factor that may contain the variable
               -> Bool           -- ^ Whether the factor contains the variable
-scopeContains var (F vars _) = elem var vars
+scopeContains var (F vars _) = var `elem` vars
 
 fProduct :: [Factor] -> Factor
 fProduct [] = F [] $ Table []
@@ -45,14 +45,14 @@ fProduct (x1:xs) =
   fProd x1 $ fProduct xs
   where
     fProd (F xVars xFun) (F yVars yFun) =
-      F (union xVars yVars)
+      F (xVars `union` yVars)
         (funCombine xFun yFun)
 
 funCombine :: FFun -> FFun -> FFun
 funCombine (Table xs) (Table ys) =
-  Table [(union xAsgn yAsgn, xProb * yProb) | (xAsgn, xProb) <- xs,
-                                              (yAsgn, yProb) <- ys,
-                                              assignmentsCompatible xAsgn yAsgn]
+  Table [(xAsgn `union` yAsgn, xProb * yProb) | (xAsgn, xProb) <- xs,
+                                                (yAsgn, yProb) <- ys,
+                                                assignmentsCompatible xAsgn yAsgn]
 
 assignmentsCompatible :: [Asgn RandVar Val] -> [Asgn RandVar Val] -> Bool
 assignmentsCompatible xs ys =
@@ -66,12 +66,11 @@ valsMatch (x, y) = x == y
 -- TODO make this shit clearer
 marginalize :: RandVar -> Factor -> Factor
 marginalize arg (F vars fun) =
-  F (filter (not . (== arg)) vars)
-    (Table $ fromPairs $
-      M.toList $ M.foldrWithKey step M.empty $ M.fromList $ toPairs $ toTabular $ fun)
+  F (filter (not . (== arg)) vars) $
+    Table . fromPairs .M.toList $ M.foldrWithKey step M.empty $ M.fromList $ toPairs $ toTabular fun
   where
-   fromPairs     = (map (\(a,b) -> (map (\(x,y)    -> x := y) a,b)))
-   toPairs       = (map (\(a,b) -> (map (\(x := y) -> (x,y) ) a,b)))
+   fromPairs     = map (\(a,b) -> (map (\(x,y)    -> x := y) a,b))
+   toPairs       = map (\(a,b) -> (map (\(x := y) -> (x,y) ) a,b))
    step as c acc =
      let as' = filter (not . (== arg) . fst) as
      in
@@ -85,18 +84,18 @@ makeFactors :: [RandVarExpr] -> [Factor]
 makeFactors varExprs = map (dropID . makeIFactor) $ collectRVEs varExprs
 
 makeIFactor :: RandVarExpr -> IdentifiedFactor
-makeIFactor v@(TopLevel _ list) = IF v $ F [vVar] $
-                                    Table (map (\x -> ([vVar := (fst x)],
+makeIFactor v@(TopLevel _ list) = IF v . F [vVar] $
+                                    Table (map (\x -> ([vVar := fst x],
                                                        snd x))
                                                list)
                                   where
                                     vVar = makeRV v
-makeIFactor v@(Const x)         = IF v $ F [vVar] $
+makeIFactor v@(Const x)         = IF v . F [vVar] $
                                     Table [([vVar := x],
                                             1)]
                                   where
                                     vVar = makeRV v
-makeIFactor v@(Add x y)         = IF v $ F [xVar, yVar, vVar] $
+makeIFactor v@(Add x y)         = IF v . F [xVar, yVar, vVar] $
                                     Table [([xVar := xVal,
                                              yVar := yVal,
                                              vVar := (xVal + yVal)],
@@ -106,7 +105,7 @@ makeIFactor v@(Add x y)         = IF v $ F [xVar, yVar, vVar] $
                                     xVar = makeRV x
                                     yVar = makeRV y
                                     vVar = makeRV v
-makeIFactor v@(Mul x y)         = IF v $ F [xVar, yVar, vVar] $
+makeIFactor v@(Mul x y)         = IF v . F [xVar, yVar, vVar] $
                                     Table [([xVar := xVal,
                                              yVar := yVal,
                                              vVar := (xVal * yVal)],
@@ -116,16 +115,16 @@ makeIFactor v@(Mul x y)         = IF v $ F [xVar, yVar, vVar] $
                                     xVar = makeRV x
                                     yVar = makeRV y
                                     vVar = makeRV v
-makeIFactor v@(Abs x)           = IF v $ F [xVar, vVar] $
+makeIFactor v@(Abs x)           = IF v . F [xVar, vVar] $
                                     Table [([xVar := xVal,
-                                             vVar := (abs xVal)],
+                                             vVar := abs xVal],
                                             1) | xVal <- rvVals xVar]
                                   where
                                     xVar = makeRV x
                                     vVar = makeRV v
-makeIFactor v@(Signum x)        = IF v $ F [xVar, vVar] $
+makeIFactor v@(Signum x)        = IF v . F [xVar, vVar] $
                                     Table [([xVar := xVal,
-                                             vVar := (signum xVal)],
+                                             vVar := signum xVal],
                                             1) | xVal <- rvVals xVar]
                                   where
                                     xVar = makeRV x

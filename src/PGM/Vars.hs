@@ -36,7 +36,7 @@ instance Eq RandVarExpr where
 
 instance Show RandVarExpr where
   show (TopLevel name _) = name
-  show (Const x) = show $ ((fromRat x) :: Double)
+  show (Const x) = show (fromRat x :: Double)
   show (Add x y) = "(" ++ show x ++ ") + (" ++ show y ++ ")"
   show (Mul x y) = "(" ++ show x ++ ") * (" ++ show y ++ ")"
   show (Abs x) = "|" ++ show x ++ "|"
@@ -52,7 +52,7 @@ data RandVar = RV { rvIdent :: Ident
 instance Show RandVar where
   show (RV i _) = show i
 instance Ord RandVar where
-  compare (RV i1 _) (RV i2 _) = if i1 == i2 then EQ else (compare (show i1) (show i2))
+  compare (RV i1 _) (RV i2 _) = if i1 == i2 then EQ else compare (show i1) (show i2)
 
 -- Note that this by default makes all potentially concievable values from the structure of
 -- the expressions, not from their semantics.
@@ -62,8 +62,8 @@ instance Ord RandVar where
 -- If I specialize the function, I will have to do it over all cases
 -- For now, it's just specialized for a few special cases
 valsRVE :: RandVarExpr -> [Val]
-valsRVE (Mul x (Const y)) = nub $ [valX * y | valX <- valsRVE x] -- special cases first
-valsRVE (Mul (Const x) y) = nub $ [x * valY | valY <- valsRVE y]
+valsRVE (Mul x (Const y)) = nub [valX * y | valX <- valsRVE x] -- special cases first
+valsRVE (Mul (Const x) y) = nub [x * valY | valY <- valsRVE y]
 --valsRVE (Add x x)      = valsRVE (Mul x $ Const 2) -- Apparently this kind of syntax in invalid :(
 --valsRVE (Add x (Mul (Const y) x)) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Add x (Mul x (Const y))) = valsRVE $ Mul $ Const (y + 1) $ x
@@ -72,8 +72,8 @@ valsRVE (Mul (Const x) y) = nub $ [x * valY | valY <- valsRVE y]
 --valsRVE (Mul x x) = nub $ [valX * valX | valX <- valsRVE]
 valsRVE (TopLevel _ l) = nub $ map fst l -- Then defaults
 valsRVE (Const x)      = [x]
-valsRVE (Add x y)      = nub [valX + valY | valX <- (valsRVE x), valY <- (valsRVE y)]
-valsRVE (Mul x y)      = nub [valX * valY | valX <- (valsRVE x), valY <- (valsRVE y)]
+valsRVE (Add x y)      = nub [valX + valY | valX <- valsRVE x, valY <- valsRVE y]
+valsRVE (Mul x y)      = nub [valX * valY | valX <- valsRVE x, valY <- valsRVE y]
 valsRVE (Abs x)        = nub [abs valX | valX <- valsRVE x]
 valsRVE (Signum x)     = nub [signum valX | valX <- valsRVE x]
 -- which way is more idiomatic of the following?
@@ -85,9 +85,9 @@ collectRVEs rves = collectMoreRVEs rves []
   where collectMoreRVEs :: [RandVarExpr] -> [RandVarExpr] -> [RandVarExpr]
         collectMoreRVEs [] lst = lst
         collectMoreRVEs (v:vs) lst =
-          if (elem v lst)
+          if v `elem` lst
             then collectMoreRVEs vs lst
-            else collectMoreRVEs ((parents v) ++ vs) (v:lst)
+            else collectMoreRVEs (parents v ++ vs) (v:lst)
         parents :: RandVarExpr -> [RandVarExpr]
         parents (TopLevel _ _) = []
         parents (Const _)      = []
@@ -110,4 +110,7 @@ makeRV v = RV v $ valsRVE v
 
 lookupProb :: Val -> [(Val, Double)] -> Maybe Double
 lookupProb _ [] = Nothing
-lookupProb v (x:xs) = if (v == fst x) then (Just $ snd x) else (lookup v xs)
+lookupProb v (x:xs) =
+  if v == fst x
+    then Just $ snd x
+    else lookup v xs

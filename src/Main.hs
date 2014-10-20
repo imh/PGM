@@ -20,5 +20,5 @@ c = b * x
 
 main :: IO ()
 main = do
-  putStrLn $ show c
-  putStrLn $ show $ makeIFactor c
+  print c
+  print $ makeIFactor c
