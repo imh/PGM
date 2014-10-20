@@ -15,8 +15,6 @@ import Data.List
 data Context = Context [RandVar] [Factor]
   deriving Show
 
-
-
 mkContextFromFacs :: [Factor] -> Context
 mkContextFromFacs facs = Context (collectVars facs []) facs
   where
