@@ -16,6 +16,8 @@ a = x + y
 b = a * z
 c = b * x
 
+
+
 main :: IO ()
 main = do
   putStrLn $ show c

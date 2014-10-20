@@ -4,6 +4,7 @@ module PGM.Factor where
 
 import PGM.Vars
 import qualified Data.Map.Strict as M
+import Data.List
 
 
 data Asgn a b = a := b
@@ -14,10 +15,11 @@ instance (Eq a, Eq b) => Eq (Asgn a b) where
 
 -- pseudo probabilty, depending on the vars, can be a probability or a conditional probability, or fully general factor (as in Koller & Friedman)
 --               vars             val vector-> pseudo probability
--- TODO generalize Val
+-- TODO generalize Val, and more importantly get abstract functions
 data FFun = Table [([Asgn RandVar Val], Double)]
-toTable :: FFun -> [([Asgn RandVar Val], Double)]
-toTable (Table t) = t
+  deriving Show
+toTabular :: FFun -> [([Asgn RandVar Val], Double)]
+toTabular (Table t) = t
 
 data IdentifiedFactor = IF Ident Factor
 instance Eq IdentifiedFactor where
@@ -26,6 +28,7 @@ instance Show IdentifiedFactor where
     show (IF vs _) = show vs
 
 data Factor = F [RandVar] FFun
+  deriving Show
 fFun :: Factor -> FFun
 fFun (F _ fun) = fun
 
@@ -60,17 +63,18 @@ assignmentsCompatible xs ys =
 valsMatch :: (Val, Val) -> Bool
 valsMatch (x, y) = x == y
 
-union :: Eq a => [a] -> [a] -> [a]
-union xs ys = [y  | y  <- ys, not $ elem y xs] ++ ys
+--union :: Eq a => [a] -> [a] -> [a]
+--union xs ys = [y  | y  <- ys, not $ elem y xs] ++ ys
 
+-- TODO make this shit clearer
 marginalize :: RandVar -> Factor -> Factor
 marginalize arg (F vars fun) =
   F (filter (not . (== arg)) vars)
     (Table $ fromPairs $
-      M.toList $ M.foldrWithKey step M.empty $ M.fromList $ toPairs $ toTable $ fun)
+      M.toList $ M.foldrWithKey step M.empty $ M.fromList $ toPairs $ toTabular $ fun)
   where
-   fromPairs = (map (\(a,b) -> (map (\(x,y) -> x := y) a,b)))
-   toPairs = (map (\(a,b) -> (map (\(x := y) -> (x,y)) a,b)))
+   fromPairs     = (map (\(a,b) -> (map (\(x,y)    -> x := y) a,b)))
+   toPairs       = (map (\(a,b) -> (map (\(x := y) -> (x,y) ) a,b)))
    step as c acc =
      let as' = filter (not . (== arg) . fst) as
      in
@@ -80,11 +84,9 @@ marginalize arg (F vars fun) =
 dropID :: IdentifiedFactor -> Factor
 dropID (IF _ f) = f
 
--- |Creates a Factor that is another factor marginalized over a given variable (or set of variables?)
---marginalize :: RandVar -> Factor -> Factor
---marginalize v f = if scopeContains v f
---  then undefined
---  else error "Cannot marginalize over a function without var in scope."
+makeFactors :: [RandVarExpr] -> [Factor]
+makeFactors varExprs = map (dropID . makeIFactor) $ collectRVEs varExprs
+
 makeIFactor :: RandVarExpr -> IdentifiedFactor
 makeIFactor v@(TopLevel _ list) = IF v $ F [vVar] $
                                     Table (map (\x -> ([vVar := (fst x)],
