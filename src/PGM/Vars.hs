@@ -53,8 +53,6 @@ instance Show RandVar where
   show (RV i _) = show i
 instance Ord RandVar where
   compare (RV i1 _) (RV i2 _) = if i1 == i2 then EQ else (compare (show i1) (show i2))
-dedup :: [Val] -> [Val]
-dedup = map head . group . sort
 
 -- Note that this by default makes all potentially concievable values from the structure of
 -- the expressions, not from their semantics.
@@ -64,23 +62,23 @@ dedup = map head . group . sort
 -- If I specialize the function, I will have to do it over all cases
 -- For now, it's just specialized for a few special cases
 valsRVE :: RandVarExpr -> [Val]
-valsRVE (Mul x (Const y)) = dedup $ [valX * y | valX <- valsRVE x] -- special cases first
-valsRVE (Mul (Const x) y) = dedup $ [x * valY | valY <- valsRVE y]
+valsRVE (Mul x (Const y)) = nub $ [valX * y | valX <- valsRVE x] -- special cases first
+valsRVE (Mul (Const x) y) = nub $ [x * valY | valY <- valsRVE y]
 --valsRVE (Add x x)      = valsRVE (Mul x $ Const 2) -- Apparently this kind of syntax in invalid :(
 --valsRVE (Add x (Mul (Const y) x)) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Add x (Mul x (Const y))) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Add (Mul (Const y) x) x) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Add (Mul x (Const y)) x) = valsRVE $ Mul $ Const (y + 1) $ x
---valsRVE (Mul x x) = dedup $ [valX * valX | valX <- valsRVE]
-valsRVE (TopLevel _ l) = dedup $ map fst l -- Then defaults
+--valsRVE (Mul x x) = nub $ [valX * valX | valX <- valsRVE]
+valsRVE (TopLevel _ l) = nub $ map fst l -- Then defaults
 valsRVE (Const x)      = [x]
-valsRVE (Add x y)      = dedup [valX + valY | valX <- (valsRVE x), valY <- (valsRVE y)]
-valsRVE (Mul x y)      = dedup [valX * valY | valX <- (valsRVE x), valY <- (valsRVE y)]
-valsRVE (Abs x)        = dedup [abs valX | valX <- valsRVE x]
-valsRVE (Signum x)     = dedup [signum valX | valX <- valsRVE x]
+valsRVE (Add x y)      = nub [valX + valY | valX <- (valsRVE x), valY <- (valsRVE y)]
+valsRVE (Mul x y)      = nub [valX * valY | valX <- (valsRVE x), valY <- (valsRVE y)]
+valsRVE (Abs x)        = nub [abs valX | valX <- valsRVE x]
+valsRVE (Signum x)     = nub [signum valX | valX <- valsRVE x]
 -- which way is more idiomatic of the following?
---  valsRVE (Abs x) = dedup [abs valX | valX <- (valsRVE x)]
---  valsRVE (Abs x) = dedup $ map abs $ valsRVE x
+--  valsRVE (Abs x) = nub [abs valX | valX <- (valsRVE x)]
+--  valsRVE (Abs x) = nub $ map abs $ valsRVE x
 
 collectRVEs :: [RandVarExpr] -> [RandVarExpr]
 collectRVEs rves = collectMoreRVEs rves []
