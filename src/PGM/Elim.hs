@@ -1,23 +1,33 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module PGM.Elim where
-
+module PGM.Elim
+       ( Context(..),
+         mkContextFromFacs,
+         mkContextFromRVEs,
+         sumProdVE
+       ) where
 
 import PGM.Factor
 import PGM.Vars
 import Data.List
 
+
 data Context = Context [RandVar] [Factor]
   deriving Show
 
-mkContext :: [Factor] -> Context
-mkContext facs = Context (collectVars facs []) facs
+
+
+mkContextFromFacs :: [Factor] -> Context
+mkContextFromFacs facs = Context (collectVars facs []) facs
   where
     collectVars :: [Factor] -> [RandVar] -> [RandVar]
     collectVars []                 vars = vars
     collectVars (F newVars _:fs) vars =
-      collectVars fs
-                  ([newVar | newVar <- newVars, newVar `notElem` vars] ++ vars)
+      collectVars fs $
+                  [newVar | newVar <- newVars, newVar `notElem` vars] ++ vars
+
+mkContextFromRVEs :: [RandVarExpr] -> Context
+mkContextFromRVEs = mkContextFromFacs . collectFactors
 
 sumProdVE :: [RandVar] -> Context -> Factor
 sumProdVE []     (Context _   facs) = fProduct facs

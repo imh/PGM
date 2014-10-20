@@ -1,11 +1,17 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module PGM.Vars where
+module PGM.Vars
+       ( RandVarExpr(..),
+         RandVar(..),
+         Val,
+         Ident,
+         collectRVEs,
+         mkRV
+       ) where
 
 import Data.List
 import Numeric
-import Data.Tuple (swap)
---import qualified Data.Set as Set
+
 
 type Val = Rational
 
@@ -16,15 +22,13 @@ data RandVarExpr = TopLevel String [(Val, Double)]
                  | Mul RandVarExpr RandVarExpr
                  | Abs RandVarExpr
                  | Signum RandVarExpr
-
 instance Num RandVarExpr where
-  (+) = Add
-  (*) = Mul
-  negate = Mul (Const (-1))
-  abs = Abs
-  signum = Signum
+  (+)         = Add
+  (*)         = Mul
+  negate      = Mul (Const (-1))
+  abs         = Abs
+  signum      = Signum
   fromInteger = Const . fromInteger
-
 instance Eq RandVarExpr where
   (TopLevel name1 _) == (TopLevel name2 _) = name1 == name2
   (Const x)          == (Const y)          = x     == y
@@ -33,14 +37,13 @@ instance Eq RandVarExpr where
   (Abs x)            == (Abs y)            = x     == y
   (Signum x)         == (Signum y)         = x     == y
   _                  == _                  = False
-
 instance Show RandVarExpr where
   show (TopLevel name _) = name
-  show (Const x) = show (fromRat x :: Double)
-  show (Add x y) = "(" ++ show x ++ ") + (" ++ show y ++ ")"
-  show (Mul x y) = "(" ++ show x ++ ") * (" ++ show y ++ ")"
-  show (Abs x) = "|" ++ show x ++ "|"
-  show (Signum x) = "signum(" ++ show x ++ ")"
+  show (Const x)         = show (fromRat x :: Double)
+  show (Add x y)         = "(" ++ show x ++ ") + (" ++ show y ++ ")"
+  show (Mul x y)         = "(" ++ show x ++ ") * (" ++ show y ++ ")"
+  show (Abs x)           = "|" ++ show x ++ "|"
+  show (Signum x)        = "signum(" ++ show x ++ ")"
 
 type Ident = RandVarExpr
 
@@ -70,12 +73,12 @@ valsRVE (Mul (Const x) y) = nub [x * valY | valY <- valsRVE y]
 --valsRVE (Add (Mul (Const y) x) x) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Add (Mul x (Const y)) x) = valsRVE $ Mul $ Const (y + 1) $ x
 --valsRVE (Mul x x) = nub $ [valX * valX | valX <- valsRVE]
-valsRVE (TopLevel _ l) = nub $ map fst l -- Then defaults
-valsRVE (Const x)      = [x]
-valsRVE (Add x y)      = nub [valX + valY | valX <- valsRVE x, valY <- valsRVE y]
-valsRVE (Mul x y)      = nub [valX * valY | valX <- valsRVE x, valY <- valsRVE y]
-valsRVE (Abs x)        = nub [abs valX | valX <- valsRVE x]
-valsRVE (Signum x)     = nub [signum valX | valX <- valsRVE x]
+valsRVE (TopLevel _ l)    = nub $ map fst l -- Then defaults
+valsRVE (Const x)         = [x]
+valsRVE (Add x y)         = nub [valX + valY | valX <- valsRVE x, valY <- valsRVE y]
+valsRVE (Mul x y)         = nub [valX * valY | valX <- valsRVE x, valY <- valsRVE y]
+valsRVE (Abs x)           = nub [abs valX | valX <- valsRVE x]
+valsRVE (Signum x)        = nub [signum valX | valX <- valsRVE x]
 -- which way is more idiomatic of the following?
 --  valsRVE (Abs x) = nub [abs valX | valX <- (valsRVE x)]
 --  valsRVE (Abs x) = nub $ map abs $ valsRVE x
@@ -96,21 +99,5 @@ collectRVEs rves = collectMoreRVEs rves []
         parents (Abs x)        = [x]
         parents (Signum x)     = [x]
 
-mkMapToInts :: [RandVarExpr] -> [(RandVarExpr, Int)]
-mkMapToInts = scanl (\vi v-> (v, 1 + snd vi)) (Const 0, 0)
-
-mkMapFromInts :: [RandVarExpr] -> [(Int, RandVarExpr)]
-mkMapFromInts = scanl (\vi v-> (1 + fst vi, v)) (0, Const 0)
-
-swapMap :: [(a, b)] -> [(b, a)]
-swapMap = map swap
-
-makeRV :: RandVarExpr -> RandVar
-makeRV v = RV v $ valsRVE v
-
-lookupProb :: Val -> [(Val, Double)] -> Maybe Double
-lookupProb _ [] = Nothing
-lookupProb v (x:xs) =
-  if v == fst x
-    then Just $ snd x
-    else lookup v xs
+mkRV :: RandVarExpr -> RandVar
+mkRV v = RV v $ valsRVE v

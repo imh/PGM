@@ -1,6 +1,13 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module PGM.Factor where
+module PGM.Factor
+       ( Factor(..),
+         fProduct,
+         marginalize,
+         collectFactors,
+         scopeContains,
+         mkFactor
+       ) where
 
 import PGM.Vars
 import qualified Data.Map.Strict as M
@@ -29,8 +36,6 @@ instance Show IdentifiedFactor where
 
 data Factor = F [RandVar] FFun
   deriving Show
-fFun :: Factor -> FFun
-fFun (F _ fun) = fun
 
 -- | Checks whether a RandVar is contained in the scope of a Factor
 scopeContains :: RandVar -- ^ The variable to be looked up
@@ -39,14 +44,13 @@ scopeContains :: RandVar -- ^ The variable to be looked up
 scopeContains var (F vars _) = var `elem` vars
 
 fProduct :: [Factor] -> Factor
-fProduct [] = F [] $ Table []
-fProduct [x] = x
-fProduct (x1:xs) =
-  fProd x1 $ fProduct xs
-  where
-    fProd (F xVars xFun) (F yVars yFun) =
-      F (xVars `union` yVars)
-        (funCombine xFun yFun)
+fProduct []      = F [] $ Table []
+fProduct [x]     = x
+fProduct (x1:xs) = fProd x1 $ fProduct xs
+                   where
+                    fProd (F xVars xFun) (F yVars yFun) =
+                      F (xVars `union` yVars)
+                        (funCombine xFun yFun)
 
 funCombine :: FFun -> FFun -> FFun
 funCombine (Table xs) (Table ys) =
@@ -76,56 +80,53 @@ marginalize arg (F vars fun) =
      in
       M.insertWith (+) as' c acc
 
--- | Drops the Ident from an IdentifiedFactor to make it a Factor
-dropID :: IdentifiedFactor -> Factor
-dropID (IF _ f) = f
+collectFactors :: [RandVarExpr] -> [Factor]
+collectFactors varExprs = map mkFactor $
+                              collectRVEs varExprs
 
-makeFactors :: [RandVarExpr] -> [Factor]
-makeFactors varExprs = map (dropID . makeIFactor) $ collectRVEs varExprs
-
-makeIFactor :: RandVarExpr -> IdentifiedFactor
-makeIFactor v@(TopLevel _ list) = IF v . F [vVar] $
-                                    Table (map (\x -> ([vVar := fst x],
-                                                       snd x))
-                                               list)
-                                  where
-                                    vVar = makeRV v
-makeIFactor v@(Const x)         = IF v . F [vVar] $
-                                    Table [([vVar := x],
-                                            1)]
-                                  where
-                                    vVar = makeRV v
-makeIFactor v@(Add x y)         = IF v . F [xVar, yVar, vVar] $
-                                    Table [([xVar := xVal,
-                                             yVar := yVal,
-                                             vVar := (xVal + yVal)],
-                                            1) | xVal <- rvVals xVar,
-                                                 yVal <- rvVals yVar]
-                                  where
-                                    xVar = makeRV x
-                                    yVar = makeRV y
-                                    vVar = makeRV v
-makeIFactor v@(Mul x y)         = IF v . F [xVar, yVar, vVar] $
-                                    Table [([xVar := xVal,
-                                             yVar := yVal,
-                                             vVar := (xVal * yVal)],
-                                            1) | xVal <- rvVals xVar,
-                                                 yVal <- rvVals yVar]
-                                  where
-                                    xVar = makeRV x
-                                    yVar = makeRV y
-                                    vVar = makeRV v
-makeIFactor v@(Abs x)           = IF v . F [xVar, vVar] $
-                                    Table [([xVar := xVal,
-                                             vVar := abs xVal],
-                                            1) | xVal <- rvVals xVar]
-                                  where
-                                    xVar = makeRV x
-                                    vVar = makeRV v
-makeIFactor v@(Signum x)        = IF v . F [xVar, vVar] $
-                                    Table [([xVar := xVal,
-                                             vVar := signum xVal],
-                                            1) | xVal <- rvVals xVar]
-                                  where
-                                    xVar = makeRV x
-                                    vVar = makeRV v
+mkFactor :: RandVarExpr -> Factor
+mkFactor v@(TopLevel _ list) = F [vVar] $
+                                 Table (map (\x -> ([vVar := fst x],
+                                                    snd x))
+                                            list)
+                               where
+                                 vVar = mkRV v
+mkFactor v@(Const x)         = F [vVar] $
+                                 Table [([vVar := x],
+                                         1)]
+                               where
+                                 vVar = mkRV v
+mkFactor v@(Add x y)         = F [xVar, yVar, vVar] $
+                                 Table [([xVar := xVal,
+                                          yVar := yVal,
+                                          vVar := (xVal + yVal)],
+                                         1) | xVal <- rvVals xVar,
+                                              yVal <- rvVals yVar]
+                               where
+                                 xVar = mkRV x
+                                 yVar = mkRV y
+                                 vVar = mkRV v
+mkFactor v@(Mul x y)         = F [xVar, yVar, vVar] $
+                                 Table [([xVar := xVal,
+                                          yVar := yVal,
+                                          vVar := (xVal * yVal)],
+                                         1) | xVal <- rvVals xVar,
+                                              yVal <- rvVals yVar]
+                               where
+                                 xVar = mkRV x
+                                 yVar = mkRV y
+                                 vVar = mkRV v
+mkFactor v@(Abs x)           = F [xVar, vVar] $
+                                 Table [([xVar := xVal,
+                                          vVar := abs xVal],
+                                         1) | xVal <- rvVals xVar]
+                               where
+                                 xVar = mkRV x
+                                 vVar = mkRV v
+mkFactor v@(Signum x)        = F [xVar, vVar] $
+                                 Table [([xVar := xVal,
+                                          vVar := signum xVal],
+                                         1) | xVal <- rvVals xVar]
+                               where
+                                 xVar = mkRV x
+                                 vVar = mkRV v
