@@ -4,17 +4,20 @@ module PGM.Vars where
 
 import Data.List
 import Numeric
+import Data.Tuple (swap)
 --import qualified Data.Set as Set
 
---TODO generalize for notjust rationals, but anything instantiating Eq (and Ord?)
-data RandomVariableExpr = TopLevel String [(Rational, Double)]
-                        | Const Rational
-                        | Add RandomVariableExpr RandomVariableExpr
-                        | Mul RandomVariableExpr RandomVariableExpr
-                        | Abs RandomVariableExpr
-                        | Signum RandomVariableExpr
+type Val = Rational
 
-instance Num RandomVariableExpr where
+--TODO generalize for notjust rationals, but anything instantiating Eq (and Ord?)
+data RandVarExpr = TopLevel String [(Val, Double)]
+                 | Const Val
+                 | Add RandVarExpr RandVarExpr
+                 | Mul RandVarExpr RandVarExpr
+                 | Abs RandVarExpr
+                 | Signum RandVarExpr
+
+instance Num RandVarExpr where
   (+) = Add
   (*) = Mul
   negate = Mul (Const (-1))
@@ -22,7 +25,7 @@ instance Num RandomVariableExpr where
   signum = Signum
   fromInteger = Const . fromInteger
 
-instance Eq RandomVariableExpr where
+instance Eq RandVarExpr where
   (TopLevel name1 _) == (TopLevel name2 _) = name1 == name2
   (Const x)          == (Const y)          = x     == y
   (Add x y)          == (Add w v)          = (x == w && y == v) || (x == v && y == w)
@@ -31,7 +34,7 @@ instance Eq RandomVariableExpr where
   (Signum x)         == (Signum y)         = x     == y
   _                  == _                  = False
 
-instance Show RandomVariableExpr where
+instance Show RandVarExpr where
   show (TopLevel name _) = name
   show (Const x) = show $ ((fromRat x) :: Double)
   show (Add x y) = "(" ++ show x ++ ") + (" ++ show y ++ ")"
@@ -39,18 +42,18 @@ instance Show RandomVariableExpr where
   show (Abs x) = "|" ++ show x ++ "|"
   show (Signum x) = "signum(" ++ show x ++ ")"
 
-type Ident = RandomVariableExpr
+type Ident = RandVarExpr
 
 --                       Id     Values
-data RandomVariable = RV { rvIdent :: Ident
-                         , rvVals :: [Rational]
-                         }
-                         deriving (Eq)
-instance Show RandomVariable where
+data RandVar = RV { rvIdent :: Ident
+                  , rvVals :: [Val]
+                  }
+                  deriving (Eq)
+instance Show RandVar where
   show (RV i _) = show i
-instance Ord RandomVariable where
+instance Ord RandVar where
   compare (RV i1 _) (RV i2 _) = if i1 == i2 then EQ else (compare (show i1) (show i2))
-dedup :: [Rational] -> [Rational]
+dedup :: [Val] -> [Val]
 dedup = map head . group . sort
 
 -- Note that this by default makes all potentially concievable values from the structure of
@@ -60,7 +63,7 @@ dedup = map head . group . sort
 -- have probability 0.
 -- If I specialize the function, I will have to do it over all cases
 -- For now, it's just specialized for a few special cases
-valsRVE :: RandomVariableExpr -> [Rational]
+valsRVE :: RandVarExpr -> [Val]
 valsRVE (Mul x (Const y)) = dedup $ [valX * y | valX <- valsRVE x] -- special cases first
 valsRVE (Mul (Const x) y) = dedup $ [x * valY | valY <- valsRVE y]
 --valsRVE (Add x x)      = valsRVE (Mul x $ Const 2) -- Apparently this kind of syntax in invalid :(
@@ -79,9 +82,34 @@ valsRVE (Signum x)     = dedup [signum valX | valX <- valsRVE x]
 --  valsRVE (Abs x) = dedup [abs valX | valX <- (valsRVE x)]
 --  valsRVE (Abs x) = dedup $ map abs $ valsRVE x
 
-makeRV :: RandomVariableExpr -> RandomVariable
+collectRVEs :: [RandVarExpr] -> [RandVarExpr]
+collectRVEs rves = collectMoreRVEs rves []
+  where collectMoreRVEs :: [RandVarExpr] -> [RandVarExpr] -> [RandVarExpr]
+        collectMoreRVEs [] lst = lst
+        collectMoreRVEs (v:vs) lst =
+          if (elem v lst)
+            then collectMoreRVEs vs lst
+            else collectMoreRVEs ((parents v) ++ vs) (v:lst)
+        parents :: RandVarExpr -> [RandVarExpr]
+        parents (TopLevel _ _) = []
+        parents (Const _)      = []
+        parents (Add x y)      = [x, y]
+        parents (Mul x y)      = [x, y]
+        parents (Abs x)        = [x]
+        parents (Signum x)     = [x]
+
+mkMapToInts :: [RandVarExpr] -> [(RandVarExpr, Int)]
+mkMapToInts = scanl (\vi v-> (v, 1 + snd vi)) (Const 0, 0)
+
+mkMapFromInts :: [RandVarExpr] -> [(Int, RandVarExpr)]
+mkMapFromInts = scanl (\vi v-> (1 + fst vi, v)) (0, Const 0)
+
+swapMap :: [(a, b)] -> [(b, a)]
+swapMap = map swap
+
+makeRV :: RandVarExpr -> RandVar
 makeRV v = RV v $ valsRVE v
 
-lookupProb :: Rational -> [(Rational, Double)] -> Maybe Double
+lookupProb :: Val -> [(Val, Double)] -> Maybe Double
 lookupProb _ [] = Nothing
 lookupProb v (x:xs) = if (v == fst x) then (Just $ snd x) else (lookup v xs)
