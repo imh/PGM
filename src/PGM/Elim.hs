@@ -90,6 +90,7 @@ greedyElim f c@(Context cVars _) varsToKeep = greedyElimRec c (cVars \\ varsToKe
         dropVarFromFac :: RandVar -> Factor -> Factor
         dropVarFromFac var (F vars fun) = F (delete var vars) fun
 
+-- | The number of new edges that would need to be added to eliminate a variable
 edgesToAdd :: Context -> RandVar -> Int
 edgesToAdd (Context _ facs) var = foldl' undefined undefined undefined
 
