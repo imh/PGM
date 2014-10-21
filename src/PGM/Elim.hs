@@ -5,7 +5,8 @@ module PGM.Elim
          mkContextFromFacs,
          mkContextFromRVEs,
          sumProdVE,
-         maxCardElim
+         maxCardElim,
+         minFillElim
        ) where
 
 import PGM.Factor
@@ -59,7 +60,7 @@ maxCardElim (Context cVars facs) varsToKeep = maxCardRec (cVars \\ varsToKeep) [
             else (numNeighbors, neighbors)
           where
             newNeighbors = [nbr | nbr <- fVars, nbr /= var, nbr `notElem` neighbors]
-        cardRem v = fst $ foldl (addNeighbors v) (0, []) facs
+        cardRem v = fst $ foldl' (addNeighbors v) (0, []) facs
         elimVar = maximumBy (compare `on` cardRem) varsLeft
 
 -- | Greedy search for constructing an elimination ordering
@@ -82,9 +83,17 @@ greedyElim f c@(Context cVars _) varsToKeep = greedyElimRec c (cVars \\ varsToKe
         elimVar     = minimumBy (compare `on` (f c_)) varsLeft
         newFac      = F (neighbors facs_ elimVar) $ error "Factors created in elimination ordering have no function."
         neighbors :: [Factor] -> RandVar -> [RandVar]
-        neighbors facs v = foldl (\vs (F fvs _) -> vs `union` fvs) [] $ filter (\(F fvs_ _) -> v `elem` fvs_) facs
+        neighbors facs v = foldl' (\vs (F fvs _) -> vs `union` fvs) [] $ filter (\(F fvs_ _) -> v `elem` fvs_) facs
         facHasVars :: Factor -> Bool
         facHasVars (F [] _) = False
         facHasVars _        = True
         dropVarFromFac :: RandVar -> Factor -> Factor
         dropVarFromFac var (F vars fun) = F (delete var vars) fun
+
+edgesToAdd :: Context -> RandVar -> Int
+edgesToAdd (Context _ facs) var = foldl' undefined undefined undefined
+
+minFillElim :: Context    -- ^ The context to eliminate from
+            -> [RandVar]  -- ^ Variables to keep
+            -> [RandVar]  -- ^ Variable elimination ordering
+minFillElim = greedyElim edgesToAdd
