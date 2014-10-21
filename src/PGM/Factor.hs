@@ -39,8 +39,8 @@ data Factor = F [RandVar] FFun
 
 -- | Checks whether a RandVar is contained in the scope of a Factor
 scopeContains :: RandVar -- ^ The variable to be looked up
-              -> Factor         -- ^ The factor that may contain the variable
-              -> Bool           -- ^ Whether the factor contains the variable
+              -> Factor  -- ^ The factor that may contain the variable
+              -> Bool    -- ^ Whether the factor contains the variable
 scopeContains var (F vars _) = var `elem` vars
 
 fProduct :: [Factor] -> Factor
