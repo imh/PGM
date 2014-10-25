@@ -9,15 +9,30 @@ import PGM.Factor
 import PGM.Vars
 
 
-x, y, z, a, b, c :: RandVarExpr
+x, x1, y, z, u :: RandVarExpr
 x = TopLevel "x" [(-1, 0.5), (1, 0.5)]
-y = 3
-z = TopLevel "z" [(-1, 0.25), (0, 0.5), (1, 0.5)]
-a = x + y
-b = a * z
-c = b * x
+x1 = TopLevel "x1" [(-1, 0.5), (1, 0.5)]
+y = x + x1
+z = x * x1
+u = abs $ y + 1
+
+g :: Context
+g = mkContextFromRVEs [y, z, u]
+
+yOrd, zOrd, uOrd :: [RandVar]
+yOrd = maxCardElim g [mkRV y]
+zOrd = maxCardElim g [mkRV z]
+uOrd = maxCardElim g [mkRV u]
+
+yFac, zFac, uFac :: Factor
+yFac = sumProdVE yOrd g
+zFac = sumProdVE zOrd g
+uFac = sumProdVE uOrd g
 
 main :: IO ()
 main = do
-  print c
-  print $ mkFactor c
+  print $ mkFactor x
+  print $ mkFactor x1
+  print yFac
+  print zFac
+  print uFac
