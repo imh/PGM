@@ -80,7 +80,7 @@ greedyElim f c@(Context cVars _) varsToKeep = greedyElimRec c (cVars \\ varsToKe
                     (elimVar:varsEliminated)
       where
         reducedFacs = filter facHasVars $ map (dropVarFromFac elimVar) facs_
-        elimVar     = minimumBy (compare `on` (f c_)) varsLeft
+        elimVar     = minimumBy (compare `on` f c_) varsLeft
         newFac      = F (neighbors facs_ elimVar) $ error "Factors created in elimination ordering have no function."
         neighbors :: [Factor] -> RandVar -> [RandVar]
         neighbors facs v = foldl' (\vs (F fvs _) -> vs `union` fvs) [] $ filter (\(F fvs_ _) -> v `elem` fvs_) facs
