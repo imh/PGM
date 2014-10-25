@@ -3,6 +3,8 @@
 
 module PGM.Factor
        ( Factor(..),
+         FFun(..),
+         Asgn(..),
          fProduct,
          marginalize,
          collectFactors,
