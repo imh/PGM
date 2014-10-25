@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module PGM.Factor
        ( Factor(..),
@@ -15,8 +16,8 @@ import Data.List
 
 
 data Asgn a b = a := b
-instance (Show a, Show b) => Show (Asgn a b) where
-  show (a := b) = show a ++ " := " ++ show b
+instance Show (Asgn RandVar Val) where
+  show (a := b) = show a ++ " := " ++ show (fromRational b :: Double)
 instance (Eq a, Eq b) => Eq (Asgn a b) where
   (aVar := aVal) == (bVar := bVal) = aVar == bVar && aVal == bVal
 
