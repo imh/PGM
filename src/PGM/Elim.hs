@@ -5,6 +5,7 @@ module PGM.Elim
          mkContextFromFacs,
          mkContextFromRVEs,
          sumProdVE,
+         defaultElim,
          maxCardElim,
          minFillElim
        ) where
@@ -42,6 +43,11 @@ sumProdElim facs var = msg:leftOverFacs
   (elimFacs, leftOverFacs) = partition (scopeContains var) facs
   prd = fProduct elimFacs
   msg = marginalize var prd
+
+-- | Some sensible default variable elimination ordering algorithm.
+-- TODO Should choose one per context/graph, instead of just max cardinalty
+defaultElim :: Context -> [RandVar] -> [RandVar]
+defaultElim = maxCardElim
 
 -- | Maximum cardinality search for constructing an elimination ordering
 maxCardElim :: Context   -- ^ The model to choose elimination on
