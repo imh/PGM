@@ -7,6 +7,7 @@ module Main
 import PGM.Elim
 import PGM.Factor
 import PGM.Vars
+import PGM.Statistics
 
 
 x, x1, y, z, u :: RandVarExpr
@@ -36,3 +37,4 @@ main = do
   print yFac
   print zFac
   print uFac
+  putStrLn $ "E[" ++ (show u) ++ "] = " ++ (show $ expectation g (mkRV u))
