@@ -17,6 +17,8 @@ y = x + x1
 z = x * x1
 u = abs $ y + 1
 
+-- Make the graph out of any variables you are interested in.
+-- If x is a parent of y, then you only need to include y
 g :: Context
 g = mkContextFromRVEs [y, z, u]
 

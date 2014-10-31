@@ -5,6 +5,8 @@ module PGM.Factor
        ( Factor(..),
          FFun(..),
          Asgn(..),
+         asgnVar,
+         asgnVal,
          fProduct,
          marginalize,
          collectFactors,
@@ -20,8 +22,16 @@ import Data.List
 data Asgn a b = a := b
 instance Show (Asgn RandVar Val) where
   show (a := b) = show a ++ " := " ++ show (fromRational b :: Double)
+instance Show (Asgn RandVar Double) where
+  show (a := b) = show a ++ " := " ++ show b
 instance (Eq a, Eq b) => Eq (Asgn a b) where
   (aVar := aVal) == (bVar := bVal) = aVar == bVar && aVal == bVal
+
+asgnVar :: Asgn a b -> a
+asgnVar (a := _) = a
+
+asgnVal :: Asgn a b -> b
+asgnVal (_ := b) = b
 
 -- pseudo probabilty, depending on the vars, can be a probability or a conditional probability, or fully general factor (as in Koller & Friedman)
 --               vars             val vector-> pseudo probability
